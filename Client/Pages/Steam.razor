@@ -1,0 +1,24 @@
+﻿@page "/steam"
+
+@inject HttpClient HttpClient
+
+
+<button @onclick="@StartSteamLogin">Start Steam login</button>
+
+
+@code {
+
+    private async Task StartSteamLogin()
+    {
+        var response = await HttpClient.GetAsync("/auth/steam-login");
+        if (response.IsSuccessStatusCode)
+        {
+            Console.WriteLine(response);
+        }
+        else
+        {
+            // Fehler beim Starten des Steam-Logins, behandeln Sie den Fehler entsprechend
+        }
+    }
+
+}
