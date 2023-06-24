@@ -8,6 +8,8 @@ namespace GMBL.Server.Services
     public class SteamAuthService : ISteamAuthService
     {
         private readonly HttpClient _httpClient;
+        private readonly string API_KEY = "592DCC71662AD677CFB9A491FE5A9F18";
+
 
         public SteamAuthService(HttpClient httpClient)
         {
@@ -16,20 +18,19 @@ namespace GMBL.Server.Services
 
         public async Task<bool> ValidateSteamUser(string steamId)
         {
-            // Senden Sie eine Anfrage an die Steam Web API, um die Profildaten des Benutzers abzurufen
-            var response = await _httpClient.GetAsync($"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=0544B7ECC0E787AE36B64B5907113FAE&steamids={steamId}");
+            var response = await _httpClient.GetAsync($"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={API_KEY}&steamids={steamId}");
 
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
 
-                // Überprüfen Sie, ob die Antwort Daten enthält und ob der Benutzer erfolgreich abgerufen wurde
+                // Check that the response contains data and that the user was retrieved successfully
                 var responseData = JObject.Parse(content);
                 var players = responseData["response"]["players"];
 
                 if (players != null && players.HasValues)
                 {
-                    // Überprüfen Sie, ob der Spieler erfolgreich abgerufen wurde
+                    // Check if the profile was retrieved successfully
                     var player = players.First;
                     var playerSteamId = player["steamid"].ToString();
 
@@ -41,6 +42,65 @@ namespace GMBL.Server.Services
             }
 
             return false;
+        }
+
+        public async Task<string> GetSteamProfileName(string steamId)
+        {
+
+            if (!ValidateSteamUser(steamId).Result) return "Wrong user!";
+
+            var apiKey = API_KEY;
+            var apiUrl = $"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={apiKey}&steamids={steamId}";
+
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(apiUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JObject.Parse(content);
+
+                    var players = result["response"]["players"];
+                    var player = players.FirstOrDefault();
+                    if (player != null)
+                    {
+                        var steamProfileName = player["personaname"].ToString();
+                        return steamProfileName;
+                    }
+                }
+            }
+
+            // Fallback value in case the API call fails
+            return "Steam Profile Name";
+        }
+
+        public async Task<string> GetSteamProfileImageUrl(string steamId)
+        {
+            if (!ValidateSteamUser(steamId).Result) return "Wrong user!";
+
+            var apiKey = API_KEY;
+            var apiUrl = $"http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key={apiKey}&steamids={steamId}";
+
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(apiUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JObject.Parse(content);
+
+                    var players = result["response"]["players"];
+                    var player = players.FirstOrDefault();
+                    if (player != null)
+                    {
+                        var steamProfileImageUrl = player["avatarfull"].ToString();
+                        return steamProfileImageUrl;
+                    }
+                }
+            }
+
+            // Fallback value in case the API call fails
+            return "Steam Profile Image URL";
         }
 
     }

@@ -3,6 +3,8 @@ using GMBL.Server.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Net;
@@ -14,8 +16,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+
 builder.Services.AddScoped<ISteamAuthService, SteamAuthService>();
 builder.Services.AddScoped<ISteamInventoryService, SteamInventoryService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
 builder.Services.AddAuthentication(options =>
@@ -27,7 +36,7 @@ builder.Services.AddAuthentication(options =>
 .AddOpenIdConnect(options =>
 {
     options.ClientId = "592DCC71662AD677CFB9A491FE5A9F18";
-    options.Authority = "https://steamcommunity.com/openid";
+    options.Authority = "https://steamcommunity.com/openid/";
     options.CallbackPath = "/signin-steam";
     options.ResponseType = "id_token";
     options.SaveTokens = true;
