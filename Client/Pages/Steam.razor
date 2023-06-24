@@ -1,24 +1,45 @@
 ﻿@page "/steam"
 
 @inject HttpClient HttpClient
-
+@inject SteamUserService SteamUserService
+@inject NavigationManager NavigationManager
 
 <button @onclick="@StartSteamLogin">Start Steam login</button>
 
 
 @code {
+    private string loggedInSteamUserId;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SteamUserService.GetLoggedInSteamUserId() != null)
+        {
+            Console.WriteLine(await SteamUserService.GetLoggedInSteamUserId());
+        }
+    }
 
     private async Task StartSteamLogin()
     {
-        var response = await HttpClient.GetAsync("/auth/steam-login");
-        if (response.IsSuccessStatusCode)
-        {
-            Console.WriteLine(response);
-        }
-        else
-        {
-            // Fehler beim Starten des Steam-Logins, behandeln Sie den Fehler entsprechend
-        }
+
+        var redirectUrl = NavigationManager.Uri + "/steam-callback";
+        var openIdUrl = "https://steamcommunity.com/openid/login";
+        var returnUrl = NavigationManager.BaseUri + "auth/steam-callback";
+
+        var parameters = new Dictionary<string, string>
+            {
+                { "openid.ns", "http://specs.openid.net/auth/2.0" },
+                { "openid.mode", "checkid_setup" },
+                { "openid.identity", "http://specs.openid.net/auth/2.0/identifier_select" },
+                { "openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select" },
+                { "openid.return_to", returnUrl },
+                { "openid.realm", NavigationManager.BaseUri }
+            };
+
+        var queryString = string.Join("&", parameters.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value ?? "")}"));
+        var redirectUri = $"{openIdUrl}?{queryString}";
+
+        NavigationManager.NavigateTo(redirectUri, forceLoad: true);
     }
 
 }

@@ -8,6 +8,8 @@ using System.Security.Claims;
 using GMBL.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using GMBL.Server.Interfaces;
+using Microsoft.Extensions.Options;
+using GMBL.Server.Session;
 
 namespace GMBL.Server.Controllers
 {
@@ -18,34 +20,16 @@ namespace GMBL.Server.Controllers
 
         private readonly IUserService _userService;
         private readonly ISteamAuthService _steamAuthService;
+        private readonly SteamSessionManager _steamSessionManager;
 
-        public AuthentificationController(IUserService userService, ISteamAuthService steamAuthService)
+        private readonly AppSettings _appSettings;
+
+        public AuthentificationController(IUserService userService, ISteamAuthService steamAuthService, IOptions<AppSettings> appSettings, SteamSessionManager steamSessionManager)
         {
             _userService = userService;
             _steamAuthService = steamAuthService;
-        }
-
-        [HttpGet("steam-login")]
-        public IActionResult SteamLogin()
-        {
-            var redirectUrl = Url.Action(nameof(SteamCallback), "SteamAuth", null, Request.Scheme);
-            var openIdUrl = "https://steamcommunity.com/openid/login";
-            var returnUrl = Request.Scheme + "://" + Request.Host.Value + Url.Action(nameof(SteamCallback), "Authentification");
-
-            var parameters = new Dictionary<string, string>
-            {
-                { "openid.ns", "http://specs.openid.net/auth/2.0" },
-                { "openid.mode", "checkid_setup" },
-                { "openid.identity", "http://specs.openid.net/auth/2.0/identifier_select" },
-                { "openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select" },
-                { "openid.return_to", returnUrl },
-                { "openid.realm", Request.Scheme + "://" + Request.Host.Value }
-            };
-
-            var queryString = string.Join("&", parameters.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value ?? "")}"));
-            var redirectUri = $"{openIdUrl}?{queryString}";
-
-            return Redirect(redirectUri);
+            _appSettings = appSettings.Value;
+            _steamSessionManager = steamSessionManager;
         }
 
 
@@ -61,6 +45,11 @@ namespace GMBL.Server.Controllers
                 var claimedId = queryParameters["openid.identity"];
                 var steamId = claimedId.First().Split('/').Last();
 
+                if (_steamSessionManager.IsUserAuthenticated())
+                {
+                    return RedirectToAction("LoggedIn");
+                }
+
                 // Call userdata from steamprofile
                 var steamProfileName = _steamAuthService.GetSteamProfileName(steamId);
                 var steamProfileImageUrl = _steamAuthService.GetSteamProfileImageUrl(steamId);
@@ -68,10 +57,24 @@ namespace GMBL.Server.Controllers
                 // Call UserService to update the data in the database
                 await _userService.CreateOrUpdateUser(steamId, await steamProfileName, await steamProfileImageUrl);
 
-                return Ok($"Eingeloggt als Steam ID: {steamId}");
+                _steamSessionManager.SetAuthenticatedUser(steamId);
+
+                return RedirectToAction("LoggedIn");
             }
 
             // Steam-Login failed
+            return RedirectToAction("LoginFailed");
+        }
+
+        [HttpGet("logged-in")]
+        public IActionResult LoggedIn()
+        {
+            // Überprüfen, ob der Benutzer authentifiziert ist
+            if (_steamSessionManager.IsUserAuthenticated())
+            {
+                return Ok("Logged in");
+            }
+
             return RedirectToAction("LoginFailed");
         }
 

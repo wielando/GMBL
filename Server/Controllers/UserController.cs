@@ -12,39 +12,21 @@ namespace GMBL.Server.Controllers
     public class UserController : ControllerBase
     {
         private readonly ISteamAuthService _steamAuthService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserController(ISteamAuthService steamAuthService)
+        public UserController(ISteamAuthService steamAuthService, IHttpContextAccessor httpContextAccessor)
         {
             _steamAuthService = steamAuthService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        [HttpGet("userinfo")]
-        [Authorize]
-        public async Task<ActionResult<SteamUserInfo>> GetSteamUserInfo()
+        [HttpGet("steam-user-id")]
+        public IActionResult GetSteamUserId()
         {
-            var steamId = User.FindFirstValue("sub");
+            var steamUserId = _httpContextAccessor.HttpContext.Session.GetString("SteamUserId");
 
-            // Überprüfen, ob der Nutzer mit dem Steamkonto übereinstimmt
-            if (!await _steamAuthService.ValidateSteamUser(steamId))
-            {
-                return Unauthorized();
-            }
-
-            // Hier können Sie weitere Überprüfungen oder Aktionen durchführen, die für den eingeloggten Nutzer relevant sind
-
-            // Beispiel: Annahme, dass der Steam-Benutzername im Claim "name" vorhanden ist
-            var steamUserName = User.FindFirstValue("name");
-
-            // Beispiel: Annahme, dass der Steam-Benutzeravatar im Claim "avatar" vorhanden ist
-            var steamUserAvatar = User.FindFirstValue("avatar");
-
-            var steamUserInfo = new SteamUserInfo
-            {
-                UserName = steamUserName,
-                UserAvatar = steamUserAvatar
-            };
-
-            return steamUserInfo;
+            return Ok(steamUserId);
         }
+
     }
 }

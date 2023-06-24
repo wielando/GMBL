@@ -14,7 +14,7 @@ namespace GMBL.Server.Services
 
         public async Task UpdateUserWithSteamData(string steamId, string steamProfileName, string steamProfileImageUrl)
         {
-            var user = await _dbContext.Users.FindAsync(steamId);
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.SteamId == steamId);
 
             if (user != null)
             {

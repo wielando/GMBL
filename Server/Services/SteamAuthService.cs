@@ -1,4 +1,5 @@
 ﻿using GMBL.Server.Interfaces;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -8,12 +9,18 @@ namespace GMBL.Server.Services
     public class SteamAuthService : ISteamAuthService
     {
         private readonly HttpClient _httpClient;
-        private readonly string API_KEY = "592DCC71662AD677CFB9A491FE5A9F18";
+        private readonly AppSettings _appSettings;
 
+        private readonly string API_KEY = "";
 
-        public SteamAuthService(HttpClient httpClient)
+    
+
+        public SteamAuthService(HttpClient httpClient, IOptions<AppSettings> appSettings)
         {
             _httpClient = httpClient;
+            _appSettings = appSettings.Value;
+
+            API_KEY = _appSettings.SteamApiKey;
         }
 
         public async Task<bool> ValidateSteamUser(string steamId)

@@ -1,10 +1,13 @@
+using GMBL.Server;
 using GMBL.Server.Interfaces;
 using GMBL.Server.Services;
+using GMBL.Server.Session;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Net;
@@ -16,14 +19,28 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 
+builder.Services.Configure<AppSettings>(builder.Configuration);
+
+
 builder.Services.AddScoped<ISteamAuthService, SteamAuthService>();
 builder.Services.AddScoped<ISteamInventoryService, SteamInventoryService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<SteamSessionManager>();
+
+
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "TimeLogin";
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Sitzungsdauer in Minuten anpassen
+                                                    // Weitere Sitzungsoptionen konfigurieren, falls erforderlich
+});
+
 
 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
@@ -43,12 +60,16 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = new TokenValidationParameters { ValidateIssuer = false };
 });
 
-builder.Services.AddCors(o => o.AddPolicy("AllowOrigins", builder =>
+builder.Services.AddCors(options =>
 {
-    builder.WithOrigins("https://localhost:44357")
-     .AllowAnyMethod()
-     .AllowAnyHeader();
-}));
+    options.AddPolicy("AllowLocalhost",
+            builder =>
+            {
+                builder.WithOrigins("https://localhost:44357")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+});
 
 
 var app = builder.Build();
@@ -67,14 +88,22 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
+
 
 app.UseBlazorFrameworkFiles();
+app.UseCors("AllowLocalhost");
 app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseSession();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 
 app.MapRazorPages();
 app.MapControllers();
