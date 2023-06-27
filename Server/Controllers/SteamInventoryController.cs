@@ -15,12 +15,5 @@ namespace GMBL.Server.Controllers
         {
             _inventoryService = inventoryService;
         }
-
-        [HttpGet]
-        public async Task<ActionResult<List<SteamInventoryItem>>> GetSteamInventory()
-        {
-            var inventory = await _inventoryService.GetCSGOItemsFromSteamInventory();
-            return inventory;
-        }
     }
 }

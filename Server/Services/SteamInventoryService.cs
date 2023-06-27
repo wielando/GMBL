@@ -1,54 +1,69 @@
 ﻿using GMBL.Server.Interfaces;
+using GMBL.Shared;
+using Microsoft.Extensions.Options;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace GMBL.Server.Services 
+namespace GMBL.Server.Services
 {
-    public class SteamInventoryItem
-    {
-        public string Name { get; set; }
-        public string Type { get; set; }
-        public string ImageId { get; set; }
-        public string ImageUrl { get; set; }
-    }
 
     public class SteamInventoryService : ISteamInventoryService
     {
         private readonly HttpClient _httpClient;
+        private readonly AppSettings _appSettings;
 
-        public SteamInventoryService(HttpClient httpClient)
+        public SteamInventoryService(HttpClient httpClient, IOptions<AppSettings> appSettings)
         {
             _httpClient = httpClient;
+            _appSettings = appSettings.Value;
         }
 
-        public async Task<List<SteamInventoryItem>> GetCSGOItemsFromSteamInventory()
+        public async Task<List<SteamInventoryDto>> GetCSGOItemsFromSteamInventory(string steamId)
         {
-            var response = await _httpClient.GetAsync("https://api.steampowered.com/IEconItems_730/GetPlayerItems/v1?key=YOUR_API_KEY&steamid=YOUR_STEAMID");
+            var steamIds = "76561198111950965";
+
+            var response = await _httpClient.GetAsync($"https://steamcommunity.com/inventory/{steamIds}/730/2?l=english&count=5000");
 
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
-                var inventoryResponse = JsonSerializer.Deserialize<SteamInventoryResponse>(responseContent);
+                var inventoryResponse = JsonConvert.DeserializeObject<JObject>(responseContent);
 
-                var csgoItems = new List<SteamInventoryItem>();
-                foreach (var item in inventoryResponse.Result.Items)
+                var descriptions = inventoryResponse.SelectToken("descriptions")?.ToObject<JArray>();
+                if (descriptions != null)
                 {
-                    if (item.Type == "CSGOType")
+                    var steamInventoryItems = new List<SteamInventoryDto>();
+
+                    foreach (var description in descriptions)
                     {
-                        var imageUrl = await GetItemImageUrl(item.ImageId);
-
-                        csgoItems.Add(new SteamInventoryItem
                         {
-                            Name = item.Name,
-                            Type = item.Type,
-                            ImageUrl = imageUrl
-                        });
+                            var marketName = description.SelectToken("market_name")?.Value<string>();
+                            var name = description.SelectToken("name")?.Value<string>();
+                            var iconUrl = description.SelectToken("icon_url")?.Value<string>();
+                            var iconUrlLarge = description.SelectToken("icon_url_large")?.Value<string>();
+
+                            if (marketName != null && name != null && iconUrl != null && iconUrlLarge != null)
+                            {
+                                var steamInventoryItem = new SteamInventoryDto
+                                {
+                                    marketName = marketName,
+                                    name = name,
+                                    iconUrl = iconUrl,
+                                    iconUrlLarge = iconUrlLarge
+                                };
+
+                                steamInventoryItems.Add(steamInventoryItem);
+                            }
+                        }
                     }
+
+
+                    return steamInventoryItems;
                 }
-
-                return csgoItems;
             }
 
             // Handle error response
@@ -57,32 +72,23 @@ namespace GMBL.Server.Services
             return null;
         }
 
-        private async Task<string> GetItemImageUrl(string imageId)
-        {
-            var response = await _httpClient.GetAsync($"https://api.steampowered.com/IEconItems_730/GetItemIconPath/v1?key=YOUR_API_KEY&iconname={imageId}");
 
-            if (response.IsSuccessStatusCode)
-            {
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var imageResponse = JsonSerializer.Deserialize<SteamImageResponse>(responseContent);
-                return imageResponse.Result.Path;
-            }
 
-            // Handle error response
-            // ...
-
-            return null;
-        }
     }
 
     public class SteamInventoryResponse
     {
-        public SteamInventoryResult Result { get; set; }
+
+        public string iconUrl { get; set; }
+        public string iconUrlLarge { get; set; }
+        public string name { get; set; }
+        public string marketName { get; set; }
+
     }
 
     public class SteamInventoryResult
     {
-        public List<SteamInventoryItem> Items { get; set; }
+        public List<SteamInventoryDto> Items { get; set; }
     }
 
     public class SteamImageResponse

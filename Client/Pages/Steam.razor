@@ -3,20 +3,18 @@
 @inject HttpClient HttpClient
 @inject SteamUserService SteamUserService
 @inject NavigationManager NavigationManager
+@inject SteamInventoryDto SteamInventoryDto;
 
 <button @onclick="@StartSteamLogin">Start Steam login</button>
 
 
 @code {
     private string loggedInSteamUserId;
-
+    private List<SteamInventoryDto> steamInventory;
 
     protected override async Task OnInitializedAsync()
     {
-        if (SteamUserService.GetLoggedInSteamUserId() != null)
-        {
-            Console.WriteLine(await SteamUserService.GetLoggedInSteamUserId());
-        }
+        
     }
 
     private async Task StartSteamLogin()

@@ -1,5 +1,7 @@
 ﻿using GMBL.Server.Helper;
 using GMBL.Server.Interfaces;
+using GMBL.Server.Services;
+using GMBL.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -13,11 +15,13 @@ namespace GMBL.Server.Controllers
     {
         private readonly ISteamAuthService _steamAuthService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ISteamInventoryService _inventoryService;
 
-        public UserController(ISteamAuthService steamAuthService, IHttpContextAccessor httpContextAccessor)
+        public UserController(ISteamAuthService steamAuthService, IHttpContextAccessor httpContextAccessor, ISteamInventoryService inventoryService)
         {
             _steamAuthService = steamAuthService;
             _httpContextAccessor = httpContextAccessor;
+            _inventoryService = inventoryService;
         }
 
         [HttpGet("steam-user-id")]
@@ -26,6 +30,16 @@ namespace GMBL.Server.Controllers
             var steamUserId = _httpContextAccessor.HttpContext.Session.GetString("SteamUserId");
 
             return Ok(steamUserId);
+        }
+
+        [HttpGet("steam-user-inventory")]
+        public async Task<List<SteamInventoryDto>> GetSteamInventory()
+        {
+            var steamUserId = _httpContextAccessor.HttpContext.Session.GetString("SteamUserId");
+
+            var t = await _inventoryService.GetCSGOItemsFromSteamInventory(steamUserId);
+
+            return await _inventoryService.GetCSGOItemsFromSteamInventory(steamUserId);
         }
 
     }

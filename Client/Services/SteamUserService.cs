@@ -1,4 +1,8 @@
-﻿namespace GMBL.Client.Services
+﻿using GMBL.Shared;
+using System.Net.Http.Json;
+using System.Text.Json;
+
+namespace GMBL.Client.Services
 {
     public class SteamUserService
     {
@@ -18,6 +22,22 @@
 
             return steamUserId;
         }
+
+        public async Task<List<SteamInventoryDto>> GetSteamUserInventory()
+        {
+            var response = await _httpClient.GetAsync("/api/user/steam-user-inventory");
+            if (response.IsSuccessStatusCode)
+            {
+                var steamInventory = await response.Content.ReadFromJsonAsync<List<SteamInventoryDto>>();
+                return steamInventory;
+            }
+
+            // Handle error response
+            // ...
+
+            return null;
+        }   
+
     }
 
 }
